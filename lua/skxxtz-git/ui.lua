@@ -97,16 +97,17 @@ end
 function M.async_refresh(callback)
     if not state.buf or not vim.api.nvim_buf_is_valid(state.buf) then return end
     git.fetch_status(function(git_lines)
-        local branch, staged, unstaged, untracked = parse_status_summary(git_lines)
-        local title = string.format(" %s · %d staged · %d unstaged · %d untracked ",
-            branch, staged, unstaged, untracked)
-
         vim.api.nvim_set_option_value("modifiable", true, { buf = state.buf })
         vim.api.nvim_buf_set_lines(state.buf, 0, -1, false, git_lines)
         M.highlight_status(git_lines)
         vim.api.nvim_set_option_value("modifiable", false, { buf = state.buf })
 
-        vim.api.nvim_buf_set_name(state.buf, title)
+        if not state.title_locked then
+            local branch, staged, unstaged, untracked = parse_status_summary(git_lines)
+            local title = string.format(" %s · %d staged · %d unstaged · %d untracked ",
+                branch, staged, unstaged, untracked)
+            vim.api.nvim_buf_set_name(state.buf, title)
+        end
 
         if callback then callback() end
     end)
@@ -259,14 +260,9 @@ function M.start_spinner(message, spinner_frames)
 end
 
 function M.stop_spinner(final_msg, delay_ms)
-    -- 1. Kill any existing timer (Animation or previous Delay)
     if state.status_bar_timer then
-        if state.status_bar_timer:is_active() then
-            state.status_bar_timer:stop()
-        end
-        if not state.status_bar_timer:is_closing() then
-            state.status_bar_timer:close()
-        end
+        if state.status_bar_timer:is_active() then state.status_bar_timer:stop() end
+        if not state.status_bar_timer:is_closing() then state.status_bar_timer:close() end
         state.status_bar_timer = nil
     end
 
@@ -275,14 +271,14 @@ function M.stop_spinner(final_msg, delay_ms)
     local name = final_msg or "Skxxtz-Git"
     vim.api.nvim_buf_set_name(state.buf, name)
 
-    if delay_ms and delay_ms > 0 then
+    if final_msg and delay_ms and delay_ms > 0 then
+        state.title_locked = true
         state.status_bar_timer = vim.uv.new_timer()
         state.status_bar_timer:start(delay_ms, 0, vim.schedule_wrap(function()
-            -- Verify buffer still exists
+            state.title_locked = false
             if state.default_buffer_is_valid() then
-                vim.api.nvim_buf_set_name(state.buf, "Skxxtz-Git")
+                M.async_refresh()
             end
-
             if state.status_bar_timer then
                 state.status_bar_timer:stop()
                 state.status_bar_timer:close()

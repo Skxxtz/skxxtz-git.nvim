@@ -16,7 +16,7 @@ function M.register()
             return buf
         end,
         keymaps = function(buf)
-            view.local_map(buf, "n", state.config.keymaps.confirm_commit, function ()
+            view.local_map(buf, "n", state.config.keymaps.commit.confirm, function ()
                 local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
                 local msg_lines = {}
                 for _, l in ipairs(lines) do

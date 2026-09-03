@@ -4,6 +4,7 @@ function M.register()
     local view = require("skxxtz-git.view")
     local state = require("skxxtz-git.state")
     local ui = require("skxxtz-git.ui")
+    local git = require("skxxtz-git.git")
 
     view.register("status", {
         sticky = true,
@@ -13,6 +14,65 @@ function M.register()
         end,
         on_leave = function()
             ui.close_diff()
+        end,
+        keymaps = function(buf)
+            local km = state.config.keymaps.status
+
+            view.local_map(buf, "n", km.stage, function()
+                local file = git.get_file_under_cursor()
+                git.stage_file(file, function()
+                    ui.async_refresh()
+                    ui.show_diff_at_cursor()
+                end)
+            end, { desc = "Stage file under cursor" })
+
+            view.local_map(buf, "n", km.unstage, function()
+                local file = git.get_file_under_cursor()
+                git.unstage_file(file, function()
+                    ui.async_refresh(ui.show_diff_at_cursor)
+                end)
+            end, { desc = "Unstage file under cursor" })
+
+            view.local_map(buf, "n", km.stage_all, function()
+                git.stage_all(function()
+                    ui.async_refresh()
+                    ui.close_diff()
+                end)
+            end, { desc = "Stage all changes" })
+
+            view.local_map(buf, "n", km.unstage_all, function()
+                git.unstage_all(function()
+                    ui.async_refresh()
+                    ui.close_diff()
+                end)
+            end, { desc = "Unstage all changes" })
+
+            view.local_map(buf, "n", km.push, function()
+                ui.start_spinner("Pushing to Remote")
+                git.push(function(error)
+                    if not error then
+                        ui.stop_spinner("✔ Pushed", 2000)
+                        ui.async_refresh(ui.show_diff_at_cursor)
+                    else
+                        ui.stop_spinner("Error", 2000)
+                        ui.show_message(error)
+                    end
+                end)
+            end, { desc = "Push local commits" })
+
+            view.local_map(buf, "n", km.commit, function()
+                view.switch("commit")
+            end, { desc = "Open commit buffer" })
+
+            view.local_map(buf, "n", km.branch, function()
+                view.switch("branch")
+            end, { desc = "Open branch buffer" })
+
+            view.local_map(buf, "n", km.close, function()
+                if state.win and vim.api.nvim_win_is_valid(state.win) then
+                    vim.api.nvim_win_close(state.win, true)
+                end
+            end, { desc = "Close window" })
         end,
     })
 end

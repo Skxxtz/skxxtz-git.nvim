@@ -37,7 +37,7 @@ function M.switch(name, ...)
     end
 
     if not spec.sticky then
-        vim.keymap.set("n", state.config.keymaps.close, function()
+        vim.keymap.set("n", state.config.keymaps.status.close, function()
             M.switch("status")
         end, { buffer = buf, desc = "Back to status" })
     end

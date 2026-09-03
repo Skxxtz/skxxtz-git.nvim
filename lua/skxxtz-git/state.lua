@@ -6,6 +6,7 @@ local M = {
     diff_buf = nil,
     diff_win = nil,
     timer = vim.uv.new_timer(),
+    title_locked = false,
     current_view = nil,
     view_buf = nil,
 }
