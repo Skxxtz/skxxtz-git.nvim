@@ -151,25 +151,47 @@ function M.unstage_all(callback)
 end
 
 function M.fetch_branches(callback)
-    -- Using --format to get clean names and HEAD status
-    -- %(refname:short) automatically handles most of the cleaning for us
-    local format = "%(HEAD)|%(refname:short)"
-
+    local format = "%(HEAD)|%(refname:short)|%(upstream:short)|%(upstream:track)"
     vim.system({ "git", "branch", "--format=" .. format }, { text = true }, function(obj)
-        local branch_list = {}
+        local branches = {}
         if obj.code == 0 and obj.stdout ~= "" then
             for line in obj.stdout:gmatch("[^\r\n]+") do
-                local head, name = line:match("^(.*)|(.*)$")
-                if name and name ~= "" and not name:match("HEAD %->") then
-                    local prefix = (head == "*") and "● " or "  "
-                    table.insert(branch_list, prefix .. name)
+                local head, name, upstream, track = line:match("^([^|]*)|([^|]*)|([^|]*)|([^|]*)$")
+                if name and name ~= "" then
+                    local ahead = track:match("ahead (%d+)")
+                    local behind = track:match("behind (%d+)")
+                    branches[name] = {
+                        is_active = (head == "*"),
+                        has_upstream = (upstream ~= ""),
+                        upstream_name = (upstream ~= "" and upstream or nil),
+                        ahead = ahead and tonumber(ahead) or 0,
+                        behind = behind and tonumber(behind) or 0,
+                        is_synced = (upstream ~= "" and track == ""),
+                        is_commit_branch = true,
+                    }
                 end
             end
         end
 
-        vim.schedule(function()
-            callback(branch_list)
-        end)
+        if next(branches) == nil then
+            vim.system({ "git", "symbolic-ref", "--short", "HEAD" }, { text = true }, function(head_obj)
+                local unborn_branches = {}
+                if head_obj.code == 0 then
+                    local unborn_name = head_obj.stdout:gsub("%s+", "")
+                    unborn_branches[unborn_name] = {
+                        is_active = true,
+                        has_upstream = false,
+                        ahead = 0,
+                        behind = 0,
+                        is_synced = false,
+                        is_commit_branch = false,
+                    }
+                end
+                vim.schedule(function() callback(unborn_branches) end)
+            end)
+        else
+            vim.schedule(function() callback(branches) end)
+        end
     end)
 end
 
