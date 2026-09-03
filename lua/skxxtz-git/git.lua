@@ -171,6 +171,34 @@ function M.fetch_branches(callback)
     end)
 end
 
+function M.switch_branch(branch, callback)
+    if not branch or branch == "" then return end
+    vim.system({ "git", "checkout", branch }, { text = true }, function(obj)
+        vim.schedule(function()
+            if obj.code == 0 then
+                vim.notify("Switched to: " .. branch, vim.log.levels.INFO)
+            else
+                vim.notify("Failed to switch: " .. (obj.stderr or ""), vim.log.levels.ERROR)
+            end
+            if callback then callback() end
+        end)
+    end)
+end
+
+function M.delete_branch(branch, callback)
+    if not branch or branch == "" then return end
+    vim.system({ "git", "branch", "-d", branch }, { text = true }, function(obj)
+        vim.schedule(function()
+            if obj.code == 0 then
+                vim.notify("Deleted branch: " .. branch, vim.log.levels.INFO)
+            else
+                vim.notify("Failed to delete: " .. (obj.stderr or ""), vim.log.levels.ERROR)
+            end
+            if callback then callback() end
+        end)
+    end)
+end
+
 function M.commit(message, callback)
     if not message or message == "" then return end
 
