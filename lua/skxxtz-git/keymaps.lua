@@ -58,10 +58,11 @@ function M.set(buf)
 
     --commit
     vim.keymap.set("n", state.config.keymaps.commit, function()
-        -- temporary buffer for the commit message
         local commit_buf = vim.api.nvim_create_buf(false, true)
         vim.api.nvim_set_option_value("filetype", "gitcommit", { buf = commit_buf })
-        vim.api.nvim_buf_set_name(commit_buf, "Commit Message:")
+        vim.api.nvim_set_option_value("buftype", "nofile", { buf = commit_buf })
+        vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = commit_buf })
+        vim.api.nvim_buf_set_name(commit_buf, "Commit Message:" .. commit_buf)
 
         -- open commit buffer
         local original_win = state.win
