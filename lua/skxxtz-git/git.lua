@@ -197,14 +197,53 @@ end
 
 function M.switch_branch(branch, callback)
     if not branch or branch == "" then return end
-    vim.system({ "git", "checkout", branch }, { text = true }, function(obj)
+    vim.system({ "git", "switch", branch }, { text = true }, function(obj)
         vim.schedule(function()
             if obj.code == 0 then
                 vim.notify("Switched to: " .. branch, vim.log.levels.INFO)
+                if callback then callback() end
+            elseif obj.stderr and obj.stderr:match("Please commit your changes or stash them") then
+                if callback then callback("dirty", obj.stderr) end
             else
                 vim.notify("Failed to switch: " .. (obj.stderr or ""), vim.log.levels.ERROR)
+                if callback then callback("error", obj.stderr) end
             end
-            if callback then callback() end
+        end)
+    end)
+end
+
+function M.stash_and_switch(branch, callback)
+    if not branch or branch == "" then return end
+
+    vim.system({ "git", "stash", "push", "-m", "skxxtz-git: auto-stash before switch" }, { text = true }, function(stash_obj)
+        if stash_obj.code ~= 0 then
+            vim.schedule(function()
+                vim.notify("Stash failed: " .. (stash_obj.stderr or ""), vim.log.levels.ERROR)
+                if callback then callback("Stash failed") end
+            end)
+            return
+        end
+
+        vim.system({ "git", "switch", branch }, { text = true }, function(checkout_obj)
+            if checkout_obj.code ~= 0 then
+                vim.schedule(function()
+                    vim.notify("Switch failed after stash: " .. (checkout_obj.stderr or ""), vim.log.levels.ERROR)
+                    if callback then callback("Switch failed, changes remain stashed") end
+                end)
+                return
+            end
+
+            vim.system({ "git", "stash", "pop" }, { text = true }, function(pop_obj)
+                vim.schedule(function()
+                    if pop_obj.code == 0 then
+                        vim.notify("Switched to " .. branch .. " and restored changes", vim.log.levels.INFO)
+                        if callback then callback(nil) end
+                    else
+                        vim.notify("Switched, but couldn't reapply stash (conflict): " .. (pop_obj.stderr or ""), vim.log.levels.WARN)
+                        if callback then callback("Switched, but stash pop conflicted — resolve manually (git stash list)") end
+                    end
+                end)
+            end)
         end)
     end)
 end
@@ -234,6 +273,21 @@ function M.rename_branch(old_name, new_name, callback)
                 vim.notify("Failed to rename: " .. (obj.stderr or ""), vim.log.levels.ERROR)
             end
             if callback then callback() end
+        end)
+    end)
+end
+
+function M.merge_branch(branch, callback)
+    if not branch or branch == "" then return end
+
+    vim.system({ "git", "merge", branch }, { text = true }, function(obj)
+        vim.schedule(function()
+            if obj.code == 0 then
+                vim.notify("Merged: " .. branch, vim.log.levels.INFO)
+            else
+                vim.notify("Merge failed: " .. (obj.stderr or ""), vim.log.levels.ERROR)
+            end
+            if callback then callback(obj.code ~= 0 and (obj.stderr or "Merge failed") or nil) end
         end)
     end)
 end

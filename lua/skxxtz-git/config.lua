@@ -21,6 +21,7 @@ M.defaults = {
             delete = "dd",
             create = "o",
             rename = "r",
+            merge = "m",
         },
     },
 }

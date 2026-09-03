@@ -93,6 +93,7 @@ function M.register()
     local view = require("skxxtz-git.view")
     local state = require("skxxtz-git.state")
     local git = require("skxxtz-git.git")
+    local current_branches = {}
 
     view.register("branch", {
         create = function()
@@ -104,6 +105,9 @@ function M.register()
         keymaps = function(buf)
             local function refresh()
                 git.fetch_branches(function(branches)
+                    if not vim.api.nvim_buf_is_valid(buf) then return end
+
+                    current_branches = branches
                     local lines, names, name_end_cols, upstream_start_cols, upstream_present = render_lines(branches)
                     vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
                     vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
@@ -149,6 +153,28 @@ function M.register()
                     git.rename_branch(name, input, refresh)
                 end)
             end, { desc = "Rename branch" })
+
+            view.local_map(buf, "n", km.merge, function()
+                local line = vim.api.nvim_get_current_line()
+                local name = line:match("^[%s●]+(%S+)")
+                if not name or line:match("───") then return end
+
+                if current_branches[name] and current_branches[name].is_active then
+                    vim.notify("Already on " .. name, vim.log.levels.WARN)
+                    return
+                end
+
+                vim.ui.select({ "Yes", "No" }, { prompt = "Merge '" .. name .. "' into current branch?" }, function(choice)
+                    if choice ~= "Yes" then return end
+                    git.merge_branch(name, function(err)
+                        if err then
+                            require("skxxtz-git.ui").show_message(err)
+                        else
+                            refresh()
+                        end
+                    end)
+                end)
+            end, { desc = "Merge branch into current" })
         end,
     })
 end
