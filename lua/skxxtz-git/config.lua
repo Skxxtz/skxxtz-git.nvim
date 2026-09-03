@@ -22,6 +22,7 @@ M.defaults = {
             create = "o",
             rename = "r",
             merge = "m",
+            set_upstream = "U",
         },
     },
 }

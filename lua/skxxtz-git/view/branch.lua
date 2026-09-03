@@ -194,6 +194,28 @@ function M.register()
                     end)
                 end)
             end, { desc = "Merge branch into current" })
+
+            view.local_map(buf, "n", km.set_upstream, function()
+                local line = vim.api.nvim_get_current_line()
+                local name = line:match("^[%s●]+(%S+)")
+                if not name or line:match("───") then return end
+
+                if current_branches[name] and current_branches[name].has_upstream then
+                    vim.notify(name .. " already has an upstream", vim.log.levels.WARN)
+                    return
+                end
+
+                vim.ui.input({ prompt = "Set upstream for '" .. name .. "' (remote): ", default = "origin" }, function(remote)
+                    if not remote or remote == "" then return end
+                    git.set_upstream(name, remote, function(err)
+                        if err then
+                            require("skxxtz-git.ui").show_message(err)
+                        else
+                            refresh()
+                        end
+                    end)
+                end)
+            end, { desc = "Set upstream for branch" })
         end,
     })
 end

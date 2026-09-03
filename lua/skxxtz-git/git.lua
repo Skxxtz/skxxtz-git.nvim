@@ -292,6 +292,23 @@ function M.merge_branch(branch, callback)
     end)
 end
 
+function M.set_upstream(branch, remote, callback)
+    if not branch or branch == "" then return end
+    remote = remote or "origin"
+
+    vim.system({ "git", "push", "-u", remote, branch }, { text = true }, function(obj)
+        vim.schedule(function()
+            if obj.code == 0 then
+                vim.notify("Upstream set: " .. remote .. "/" .. branch, vim.log.levels.INFO)
+                if callback then callback() end
+            else
+                vim.notify("Failed to set upstream: " .. (obj.stderr or ""), vim.log.levels.ERROR)
+                if callback then callback(obj.stderr or "Failed to set upstream") end
+            end
+        end)
+    end)
+end
+
 function M.commit(message, callback)
     if not message or message == "" then return end
 
