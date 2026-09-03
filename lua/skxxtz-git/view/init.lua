@@ -3,12 +3,6 @@ local state = require("skxxtz-git.state")
 
 M.registry = {}
 
--- spec = {
---   create   = function(...) -> buf   -- build/reuse a buffer, return it
---   keymaps  = function(buf, ...)     -- optional, buffer-local maps for this view
---   on_leave = function(buf)          -- optional, cleanup when navigating away
---   sticky   = true|false             -- if true, <esc> closes the window instead of going back to status
--- }
 function M.register(name, spec)
     M.registry[name] = spec
 end
@@ -23,7 +17,6 @@ function M.switch(name, ...)
     local win = state.win
     if not win or not vim.api.nvim_win_is_valid(win) then return end
 
-    -- let the outgoing view clean up (e.g. status view closes its diff float)
     local prev = state.current_view and M.registry[state.current_view]
     if prev and prev.on_leave then
         prev.on_leave(state.view_buf)
@@ -48,6 +41,20 @@ function M.switch(name, ...)
             M.switch("status")
         end, { buffer = buf, desc = "Back to status" })
     end
+end
+
+-- lazily require and register every builtin view; called once from init.lua
+function M.setup()
+    require("skxxtz-git.view.status").register()
+    require("skxxtz-git.view.commit").register()
+    require("skxxtz-git.view.branch").register()
+    require("skxxtz-git.view.message").register()
+end
+
+function M.local_map(buf, mode, lhs, rhs, opts)
+    opts = opts or {}
+    opts.buffer = buf
+    vim.keymap.set(mode, lhs, rhs, opts)
 end
 
 return M

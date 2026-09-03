@@ -5,7 +5,9 @@ local M = {
     ui_win = nil,
     diff_buf = nil,
     diff_win = nil,
-    timer = vim.uv.new_timer()
+    timer = vim.uv.new_timer(),
+    current_view = nil,
+    view_buf = nil,
 }
 
 M.config = config.defaults

@@ -2,6 +2,7 @@ local M = {}
 local state = require("skxxtz-git.state")
 local git = require("skxxtz-git.git")
 local ui = require("skxxtz-git.ui")
+local view = require("skxxtz-git.view")
 
 function M.set(buf)
     if not buf or not vim.api.nvim_buf_is_valid(buf) then
@@ -58,52 +59,11 @@ function M.set(buf)
 
     --commit
     vim.keymap.set("n", state.config.keymaps.commit, function()
-        local commit_buf = vim.api.nvim_create_buf(false, true)
-        vim.api.nvim_set_option_value("filetype", "gitcommit", { buf = commit_buf })
-        vim.api.nvim_set_option_value("buftype", "nofile", { buf = commit_buf })
-        vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = commit_buf })
-        vim.api.nvim_buf_set_name(commit_buf, "Commit Message:" .. commit_buf)
-
-        -- open commit buffer
-        local original_win = state.win
-        vim.api.nvim_set_option_value("winfixbuf", false, {win = original_win})
-        vim.api.nvim_win_set_buf(original_win, commit_buf)
-        vim.api.nvim_set_option_value("winfixbuf", true, {win = original_win})
-
-        vim.cmd("startinsert")
-
-        -- keymap to commit
-        vim.keymap.set("n", state.config.keymaps.confirm_commit, function()
-            local lines = vim.api.nvim_buf_get_lines(commit_buf, 0, -1, false)
-            local message = table.concat(lines, "\n")
-
-            if message:match("%S") then
-                git.commit(message, function()
-                    -- Go back to the TUI buffer and refresh
-                    if vim.api.nvim_win_is_valid(original_win) then
-                        vim.api.nvim_set_option_value("winfixbuf", false, {win = original_win})
-                        vim.api.nvim_win_set_buf(original_win, state.buf)
-                        vim.api.nvim_set_option_value("winfixbuf", true, {win = original_win})
-                        ui.async_refresh()
-                    end
-                end)
-            else
-                vim.notify("Commit cancelled: Empty message", vim.log.levels.WARN)
-                vim.api.nvim_win_set_buf(original_win, state.buf)
-            end
-        end, { buffer = commit_buf, desc = "Confirm Commit" })
-
-        -- keymap to cancel
-        vim.keymap.set("n", "<esc>", function()
-            vim.api.nvim_set_option_value("winfixbuf", false, {win = original_win})
-            vim.api.nvim_win_set_buf(original_win, state.buf)
-            vim.api.nvim_set_option_value("winfixbuf", true, {win = original_win})
-        end, { buffer = commit_buf, desc = "Cancel Commit" })
-
+        view.switch("commit")
     end, { buffer = buf, desc = "Open commit buffer" })
 
     vim.keymap.set("n", state.config.keymaps.branch, function ()
-        ui.branch_view()
+        view.switch("branch")
     end, { buffer = buf, desc = "Open branch buffer" })
 
 

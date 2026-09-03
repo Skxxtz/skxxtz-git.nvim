@@ -120,36 +120,8 @@ function M.set_opts(target, opts, is_win)
 end
 
 function M.show_message(message)
-    if not message or #message == 0 then
-        return
-    end
-
-    -- temporary buffer for the commit message
-    local message_buf = vim.api.nvim_create_buf(false, true)
-
-    -- open commit buffer
-    local original_win = state.win
-    vim.api.nvim_set_option_value("winfixbuf", false, { win = original_win })
-    vim.api.nvim_win_set_buf(original_win, message_buf)
-    vim.api.nvim_set_option_value("winfixbuf", true, { win = original_win })
-
-    -- set buf opts and content
-    local opts = {
-        buftype = "nofile",
-        bufhidden = "wipe",
-        modifiable = false,
-        swapfile = false,
-    }
-    vim.api.nvim_buf_set_lines(message_buf, 0, -1, false, { message })
-    M.set_opts(message_buf, opts, false)
-
-    -- return map
-    vim.keymap.set("n", "<esc>", function()
-        vim.api.nvim_set_option_value("winfixbuf", false, { win = original_win })
-        vim.api.nvim_win_set_buf(original_win, state.buf)
-        vim.api.nvim_set_option_value("winfixbuf", true, { win = original_win })
-        M.async_refresh(M.show_diff_at_cursor)
-    end, { buffer = message_buf, desc = "Cancel Commit" })
+    if not message or #message == 0 then return end
+    require("skxxtz-git.view").switch("message", message)
 end
 
 function M.create_diff_window()
@@ -270,8 +242,6 @@ function M.start_spinner(message, spinner_frames)
 
     if not state.default_buffer_is_valid() then return end
 
-    local initial_content = vim.api.nvim_buf_get_lines(state.buf, 0, -1, false)
-
     state.status_bar_timer = vim.uv.new_timer()
     state.status_bar_timer:start(0, 100, vim.schedule_wrap(function()
         if not state.default_buffer_is_valid() then
@@ -320,68 +290,6 @@ function M.stop_spinner(final_msg, delay_ms)
             end
         end))
     end
-end
-
-function M.branch_view()
-    local original_win = state.win
-
-    -- Helper to refresh the buffer content without closing the window
-    local function refresh_branch_view(buf)
-        git.fetch_branches(function(branches)
-            if not branches or #branches == 0 then
-                M.async_refresh()
-            end
-
-            -- Allow editing to change lines, then lock it back
-            vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
-            vim.api.nvim_buf_set_lines(buf, 0, -1, false, branches)
-            vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
-        end)
-    end
-
-    git.fetch_branches(function(branches)
-        if not branches or #branches == 0 then return end
-
-        local branch_buf = vim.api.nvim_create_buf(false, true)
-
-        -- open buffer in existing window
-        vim.api.nvim_set_option_value("winfixbuf", false, { win = original_win })
-        vim.api.nvim_win_set_buf(original_win, branch_buf)
-        vim.api.nvim_set_option_value("winfixbuf", true, { win = original_win })
-
-        vim.api.nvim_buf_set_lines(branch_buf, 0, -1, false, branches)
-        M.set_opts(branch_buf, { buftype = "nofile", modifiable = false }, false)
-
-        vim.keymap.set("n", "<CR>", function()
-            local line = vim.api.nvim_get_current_line()
-            local branch_name = line:gsub("^[%s●]+", "")
-            if branch_name == "" or line:match("───") then return end
-
-            git.switch_branch(branch_name, function()
-                refresh_branch_view(branch_buf)
-            end)
-        end, { buffer = branch_buf })
-
-        vim.keymap.set("n", "a", function()
-            vim.ui.input({ prompt = "New branch: " }, function(input)
-                if not input or input == "" then return end
-
-                vim.system({ "git", "checkout", "-b", input }, {}, function()
-                    vim.schedule(function()
-                        refresh_branch_view(branch_buf)
-                    end)
-                end)
-            end)
-        end, { buffer = branch_buf })
-
-        -- exit mapping
-        vim.keymap.set("n", "<esc>", function()
-            vim.api.nvim_set_option_value("winfixbuf", false, { win = original_win })
-            vim.api.nvim_win_set_buf(original_win, state.buf)
-            vim.api.nvim_set_option_value("winfixbuf", true, { win = original_win })
-            M.async_refresh(M.show_diff_at_cursor)
-        end, { buffer = branch_buf })
-    end)
 end
 
 return M

@@ -3,11 +3,13 @@ local state = require("skxxtz-git.state")
 local ui = require("skxxtz-git.ui")
 local highlights = require("skxxtz-git.highlights")
 local keymaps = require("skxxtz-git.keymaps")
+local view = require("skxxtz-git.view")
 
 function M.setup(user_config)
     -- merge user config into defaults
     state.config = vim.tbl_deep_extend("force", state.config, user_config or {})
     highlights.setup()
+    view.setup()
 end
 
 function M.open()
@@ -68,6 +70,8 @@ function M.open()
     })
 
     keymaps.set(buf)
+    state.current_view = "status"
+    state.view_buf = buf;
 
     ui.async_refresh()
 end
