@@ -73,6 +73,39 @@ function M.register()
                     vim.api.nvim_win_close(state.win, true)
                 end
             end, { desc = "Close window" })
+
+            view.local_map(buf, "n", km.pull, function()
+                ui.start_spinner("Pulling from remote")
+                git.pull(function(status, detail)
+                    if not status then
+                        ui.stop_spinner("✔ Pulled", 2000)
+                        ui.async_refresh(ui.show_diff_at_cursor)
+                    elseif status == "dirty" then
+                        ui.stop_spinner("Error", 2000)
+                        vim.ui.select({ "Yes", "No" }, {
+                            prompt = "You have uncommitted changes. Stash, pull, and restore them?",
+                        }, function(choice)
+                            if choice ~= "Yes" then return end
+                            ui.start_spinner("Stashing and pulling")
+                            git.stash_and_pull(function(err)
+                                if err then
+                                    ui.stop_spinner("Error", 2000)
+                                    ui.show_message(err)
+                                else
+                                    ui.stop_spinner("✔ Pulled", 2000)
+                                end
+                                ui.async_refresh(ui.show_diff_at_cursor)
+                            end)
+                        end)
+                    elseif status == "conflict" then
+                        ui.stop_spinner("Conflict", 2000)
+                        ui.show_message(detail or "Pull resulted in conflicts — resolve manually")
+                    else
+                        ui.stop_spinner("Error", 2000)
+                        ui.show_message(detail or "Pull failed")
+                    end
+                end)
+            end, { desc = "Pull from remote" })
         end,
     })
 end

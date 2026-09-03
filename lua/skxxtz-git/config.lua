@@ -11,6 +11,7 @@ M.defaults = {
             commit = "<C-c>",
             branch = "b",
             push = "p",
+            pull = "P",
             close = "<esc>",
         },
         commit = {
