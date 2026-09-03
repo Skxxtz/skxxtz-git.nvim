@@ -124,7 +124,26 @@ function M.register()
                 local line = vim.api.nvim_get_current_line()
                 local name = line:match("^[%s●]+(%S+)")
                 if not name or line:match("───") then return end
-                git.switch_branch(name, refresh)
+
+                git.switch_branch(name, function(status, detail)
+                    if not status then
+                        refresh()
+                    elseif status == "dirty" then
+                        vim.ui.select({ "Yes", "No" }, {
+                            prompt = "You have uncommitted changes. Stash, switch, and restore them?",
+                        }, function(choice)
+                            if choice ~= "Yes" then return end
+                            git.stash_and_switch(name, function(err)
+                                if err then
+                                    require("skxxtz-git.ui").show_message(err)
+                                end
+                                refresh()
+                            end)
+                        end)
+                    else
+                        require("skxxtz-git.ui").show_message(detail or "Switch failed")
+                    end
+                end)
             end, { desc = "Switch branch" })
 
             view.local_map(buf, "n", km.delete, function()
