@@ -1,16 +1,16 @@
 local M = {}
 local state = require("skxxtz-git.state")
 local ui = require("skxxtz-git.ui")
+local highlights = require("skxxtz-git.highlights")
 local keymaps = require("skxxtz-git.keymaps")
-
 
 function M.setup(user_config)
     -- merge user config into defaults
     state.config = vim.tbl_deep_extend("force", state.config, user_config or {})
+    highlights.setup()
 end
 
 function M.open()
-    -- create buffer
     local buf = vim.api.nvim_create_buf(false, true)
     local b_opts = {
         buftype = "nofile",
@@ -21,8 +21,6 @@ function M.open()
     ui.set_opts(buf, b_opts, false)
     state.buf = buf
 
-    -- 'botright' ensures the new window takes full width at the bottom
-    -- '10split' opens a new horizontal split 10 lines high
     vim.cmd("botright 10split")
 
     local win = vim.api.nvim_get_current_win()
@@ -33,7 +31,6 @@ function M.open()
         wrap = false,
         spell = false,
         fillchars = "eob: ",
-        winfixbuf = true,
         foldenable = false,
         foldcolumn = "0",
         statuscolumn = "",
@@ -44,6 +41,7 @@ function M.open()
 
     vim.api.nvim_buf_set_name(buf, "Skxxtz-Git")
     vim.api.nvim_win_set_buf(win, buf)
+    vim.api.nvim_set_option_value("winfixbuf", true, { win = win })
 
     -- Auto close diff window
     vim.api.nvim_create_autocmd("WinClosed", {
@@ -69,7 +67,7 @@ function M.open()
         end
     })
 
-    keymaps.set()
+    keymaps.set(buf)
 
     ui.async_refresh()
 end

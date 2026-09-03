@@ -3,6 +3,7 @@ local M = {
     ui_win = nil,
     diff_buf = nil,
     diff_win = nil,
+    diff_file = nil,
     timer = vim.uv.new_timer()
 }
 

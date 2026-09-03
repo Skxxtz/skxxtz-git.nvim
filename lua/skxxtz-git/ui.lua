@@ -2,11 +2,77 @@ local M = {}
 local state = require("skxxtz-git.state")
 local git = require("skxxtz-git.git")
 
+local ns = vim.api.nvim_create_namespace("skxxtz-git")
+local diff_ns = vim.api.nvim_create_namespace("skxxtz-git-diff")
+
+local function classify(line)
+    if line:match("^%s*On branch") or line:match("^%s*HEAD detached") then
+        return "SkxxtzGitBranch"
+    elseif line:match("Changes to be committed") or line:match("Changes not staged")
+        or line:match("Untracked files") then
+        return "SkxxtzGitHeader"
+    elseif line:match("new file:") then
+        return "SkxxtzGitStaged"
+    elseif line:match("modified:") then
+        return "SkxxtzGitModified"
+    elseif line:match("deleted:") then
+        return "SkxxtzGitDeleted"
+    elseif line:match("renamed:") then
+        return "SkxxtzGitRenamed"
+    end
+    return nil
+end
+
+function M.highlight_status(lines)
+    vim.api.nvim_buf_clear_namespace(state.buf, ns, 0, -1)
+    for i, line in ipairs(lines) do
+        local group = classify(line)
+        if group then
+            vim.api.nvim_buf_set_extmark(state.buf, ns, i - 1, 0, {
+                end_line = i,
+                hl_group = group,
+                hl_eol = true,
+            })
+        end
+    end
+end
+
+local function classify_diff(line)
+    if line:match("^%s*─+%s*$") then
+        return "SkxxtzGitDiffSep"
+    elseif line:match("^@@.-@@") then
+        return "SkxxtzGitDiffHunk"
+    elseif line:match("^diff %-%-git") or line:match("^index ")
+        or line:match("^%-%-%- ") or line:match("^%+%+%+ ") then
+        return "SkxxtzGitDiffMeta"
+    elseif line:match("^%+") then
+        return "SkxxtzGitDiffAdd"
+    elseif line:match("^%-") then
+        return "SkxxtzGitDiffDelete"
+    end
+    return nil
+end
+
+function M.highlight_diff(lines)
+    vim.api.nvim_buf_clear_namespace(state.diff_buf, diff_ns, 0, -1)
+    for i, line in ipairs(lines) do
+        local group = classify_diff(line)
+        if group then
+            vim.api.nvim_buf_set_extmark(state.diff_buf, diff_ns, i - 1, 0, {
+                end_line = i,
+                hl_group = group,
+                hl_eol = true,
+            })
+        end
+    end
+end
+
 function M.async_refresh(callback)
     if not state.buf or not vim.api.nvim_buf_is_valid(state.buf) then return end
     git.fetch_status(function(git_lines)
         vim.api.nvim_set_option_value("modifiable", true, { buf = state.buf })
         vim.api.nvim_buf_set_lines(state.buf, 0, -1, false, git_lines)
+        M.highlight_status(git_lines)
         vim.api.nvim_set_option_value("modifiable", false, { buf = state.buf })
 
         -- ensure the callback is called after refresh, in case of animations
@@ -109,15 +175,27 @@ end
 function M.show_diff_at_cursor()
     local file = git.get_file_under_cursor()
 
-    -- handle invalid file
     if not file then
         M.close_diff()
+        state.diff_file = nil
         return
     end
 
+    -- already showing this file's diff — nothing to do
+    if file == state.diff_file and state.diff_win and vim.api.nvim_win_is_valid(state.diff_win) then
+        return
+    end
+
+    local request_id = (state.diff_request or 0) + 1
+    state.diff_request = request_id
+
     git.get_diff(file, function(diff_lines)
+        -- a newer request started after this one — discard
+        if state.diff_request ~= request_id then return end
+
         if not diff_lines or #diff_lines == 0 then
             M.close_diff()
+            state.diff_file = nil
             return
         end
 
@@ -128,21 +206,21 @@ function M.show_diff_at_cursor()
             state.diff_win = win
         end
 
-        if state.buf and vim.api.nvim_buf_is_valid(state.buf) then
-            -- render diff
-            vim.api.nvim_set_option_value("modifiable", true, { buf = state.diff_buf })
-            vim.api.nvim_buf_set_lines(state.diff_buf, 0, -1, false, diff_lines)
-            vim.api.nvim_set_option_value("modifiable", false, { buf = state.diff_buf })
+        state.diff_file = file
 
-            -- highlighting
+        vim.api.nvim_set_option_value("modifiable", true, { buf = state.diff_buf })
+        vim.api.nvim_buf_set_lines(state.diff_buf, 0, -1, false, diff_lines)
+        M.highlight_diff(diff_lines)
+        vim.api.nvim_set_option_value("modifiable", false, { buf = state.diff_buf })
+
+        if vim.b[state.diff_buf].diff_syntax_loaded ~= true then
             vim.api.nvim_buf_call(state.diff_buf, function()
                 vim.cmd("syntax on")
-                vim.cmd("filetype detect")
             end)
-
-            -- update window title
-            vim.api.nvim_win_set_config(state.diff_win, { title = " " .. file .. " " })
+            vim.b[state.diff_buf].diff_syntax_loaded = true
         end
+
+        vim.api.nvim_win_set_config(state.diff_win, { title = " " .. file .. " " })
     end)
 end
 
@@ -218,7 +296,7 @@ function M.branch_view()
     -- Helper to refresh the buffer content without closing the window
     local function refresh_branch_view(buf)
         git.fetch_branches(function(branches)
-            if not branches or #branches == 0 then 
+            if not branches or #branches == 0 then
                 M.async_refresh()
             end
 

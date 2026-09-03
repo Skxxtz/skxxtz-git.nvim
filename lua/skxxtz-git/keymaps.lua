@@ -4,7 +4,7 @@ local git = require("skxxtz-git.git")
 local ui = require("skxxtz-git.ui")
 
 function M.set(buf)
-    if not buf or not vim.api.nvim_buf_is_valid(buf) then 
+    if not buf or not vim.api.nvim_buf_is_valid(buf) then
         vim.notify("Failed to set keymaps to nil buffer.", vim.log.levels.ERROR, {})
     end
     -- git add command

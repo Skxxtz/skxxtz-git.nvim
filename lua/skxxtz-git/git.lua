@@ -1,27 +1,29 @@
 local M = {}
 
+local NON_FILE_PATTERNS = {
+    "^On branch", "^Your branch", "^no changes", "^nothing added",
+    "^nothing to commit", "^Changes to be committed:",
+    "^Changes not staged for commit:", "^Untracked files:",
+    "^HEAD detached",
+}
+
 function M.get_file_under_cursor()
     local line = vim.api.nvim_get_current_line()
     if not line or line == "" or line:match("───") then return nil end
 
-    -- Use 'or' to chain the verbose status matches
+    local trimmed = line:gsub("^%s+", "")
+    for _, pat in ipairs(NON_FILE_PATTERNS) do
+        if trimmed:match(pat) then return nil end
+    end
+
     local file = line:match("modified:%s+(%S+)")
         or line:match("deleted:%s+(%S+)")
         or line:match("renamed:%s+.*%s+->%s+(%S+)")
         or line:match("new file:%s+(%S+)")
+        or line:match("^[%sMADRC%?][%sMADRC%?]%s+(%S+)")
+        or trimmed:match("^(%S+)")
 
-    -- try short format: " M path/to/file.txt"
-    if not file then
-        file = line:match("^[%sMADRC%?][%sMADRC%?]%s+(%S+)")
-    end
-
-    -- first non-space string
-    if not file then
-        file = line:match("^%s*(%S+)")
-    end
-
-    -- ensure no headers or separators
-    if not file or file == "" or file:match("───") or file:match(":$") then
+    if not file or file == "" or file:match(":$") then
         return nil
     end
 
