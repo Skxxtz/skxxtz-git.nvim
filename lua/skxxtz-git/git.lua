@@ -223,6 +223,21 @@ function M.delete_branch(branch, callback)
     end)
 end
 
+function M.rename_branch(old_name, new_name, callback)
+    if not old_name or old_name == "" or not new_name or new_name == "" then return end
+
+    vim.system({ "git", "branch", "-m", old_name, new_name }, { text = true }, function(obj)
+        vim.schedule(function()
+            if obj.code == 0 then
+                vim.notify("Renamed: " .. old_name .. " → " .. new_name, vim.log.levels.INFO)
+            else
+                vim.notify("Failed to rename: " .. (obj.stderr or ""), vim.log.levels.ERROR)
+            end
+            if callback then callback() end
+        end)
+    end)
+end
+
 function M.commit(message, callback)
     if not message or message == "" then return end
 

@@ -138,6 +138,17 @@ function M.register()
                     end)
                 end)
             end, { desc = "Create branch" })
+
+            view.local_map(buf, "n", km.rename, function()
+                local line = vim.api.nvim_get_current_line()
+                local name = line:match("^[%s●]+(%S+)")
+                if not name or line:match("───") then return end
+
+                vim.ui.input({ prompt = "Rename '" .. name .. "' to: ", default = name }, function(input)
+                    if not input or input == "" or input == name then return end
+                    git.rename_branch(name, input, refresh)
+                end)
+            end, { desc = "Rename branch" })
         end,
     })
 end

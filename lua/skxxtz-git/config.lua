@@ -20,6 +20,7 @@ M.defaults = {
             switch = "<CR>",
             delete = "dd",
             create = "o",
+            rename = "r",
         },
     },
 }
