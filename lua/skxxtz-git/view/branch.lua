@@ -216,6 +216,14 @@ function M.register()
                     end)
                 end)
             end, { desc = "Set upstream for branch" })
+
+            view.local_map(buf, "n", km.fetch, function()
+                require("skxxtz-git.ui").start_spinner("Fetching")
+                git.fetch(function(err)
+                    require("skxxtz-git.ui").stop_spinner(err and "Fetch failed" or "✔ Fetched", 1500)
+                    refresh()
+                end)
+            end, { desc = "Fetch from remote" })
         end,
     })
 end
