@@ -67,15 +67,37 @@ function M.highlight_diff(lines)
     end
 end
 
+local function count_changes(lines)
+    local staged, unstaged, untracked, section = 0, 0, 0, nil
+    for _, line in ipairs(lines) do
+        if line:match("Changes to be committed:") then section = "staged"
+        elseif line:match("Changes not staged for commit:") then section = "unstaged"
+        elseif line:match("Untracked files:") then section = "untracked"
+        elseif line:match("modified:") or line:match("new file:")
+            or line:match("deleted:") or line:match("renamed:") then
+            if section == "staged" then staged = staged + 1
+            elseif section == "unstaged" then unstaged = unstaged + 1 end
+        elseif section == "untracked" and line:match("%S") and not line:match(":$") then
+            untracked = untracked + 1
+        end
+    end
+    return staged, unstaged, untracked
+end
+
 function M.async_refresh(callback)
     if not state.buf or not vim.api.nvim_buf_is_valid(state.buf) then return end
     git.fetch_status(function(git_lines)
+        local staged, unstaged, untracked = count_changes(git_lines)
+        local header = string.format("  %d staged · %d unstaged · %d untracked", staged, unstaged, untracked)
+
+        local lines = { header, "" }
+        vim.list_extend(lines, git_lines)
+
         vim.api.nvim_set_option_value("modifiable", true, { buf = state.buf })
-        vim.api.nvim_buf_set_lines(state.buf, 0, -1, false, git_lines)
-        M.highlight_status(git_lines)
+        vim.api.nvim_buf_set_lines(state.buf, 0, -1, false, lines)
+        M.highlight_status(lines)
         vim.api.nvim_set_option_value("modifiable", false, { buf = state.buf })
 
-        -- ensure the callback is called after refresh, in case of animations
         if callback then callback() end
     end)
 end
