@@ -19,7 +19,7 @@ M.defaults = {
         branch = {
             switch = "<CR>",
             delete = "dd",
-            create = "a",
+            create = "o",
         },
     },
 }
