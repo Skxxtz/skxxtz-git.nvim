@@ -136,14 +136,13 @@ function M.stage_all(callback)
 end
 
 function M.unstage_all(callback)
-    vim.system({ "git", "restore", "--stage", "." }, { text = true }, function(obj)
+    vim.system({ "git", "restore", "--staged", "." }, { text = true }, function(obj)
         vim.schedule(function()
             if obj.code == 0 then
                 vim.notify("Unstaged all staged changes", vim.log.levels.INFO)
             else
                 vim.notify("Failed to unstage all staged changes", vim.log.levels.ERROR)
             end
-
             if callback then callback() end
         end)
     end)
