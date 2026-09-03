@@ -8,7 +8,9 @@ function M.register()
             local buf = vim.api.nvim_create_buf(false, true)
             vim.api.nvim_set_option_value("buftype", "nofile", { buf = buf })
             vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
-            vim.api.nvim_buf_set_lines(buf, 0, -1, false, { message })
+
+            local lines = vim.split(message, "\n", { plain = true, trimempty = false })
+            vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
             vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
             return buf
         end,
