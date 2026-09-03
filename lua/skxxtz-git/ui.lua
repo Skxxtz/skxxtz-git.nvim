@@ -67,22 +67,6 @@ function M.highlight_diff(lines)
     end
 end
 
-local function count_changes(lines)
-    local staged, unstaged, untracked, section = 0, 0, 0, nil
-    for _, line in ipairs(lines) do
-        if line:match("Changes to be committed:") then section = "staged"
-        elseif line:match("Changes not staged for commit:") then section = "unstaged"
-        elseif line:match("Untracked files:") then section = "untracked"
-        elseif line:match("modified:") or line:match("new file:")
-            or line:match("deleted:") or line:match("renamed:") then
-            if section == "staged" then staged = staged + 1
-            elseif section == "unstaged" then unstaged = unstaged + 1 end
-        elseif section == "untracked" and line:match("%S") and not line:match(":$") then
-            untracked = untracked + 1
-        end
-    end
-    return staged, unstaged, untracked
-end
 
 local function parse_status_summary(lines)
     local branch = "detached"
