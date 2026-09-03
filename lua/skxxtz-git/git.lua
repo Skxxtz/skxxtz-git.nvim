@@ -35,7 +35,9 @@ function M.fetch_status(callback)
         local lines = {}
         if obj.code == 0 and obj.stdout ~= "" then
             for line in obj.stdout:gmatch("[^\r\n]+") do
-                if not line:match("^%s*%(") and not line:match("^%s*use \"git") then
+                if not line:match("^%s*%(")
+                    and not line:match("^%s*use \"git")
+                    and not line:match("^%s*no changes added to commit") then
                     table.insert(lines, "  " .. line)
                 end
             end
